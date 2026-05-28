@@ -1,0 +1,40 @@
+HEX VALUE | ASSEMBLY INSTRUCTION     | PLAIN ENGLISH DESCRIPTION
+--------------------------------------------------------------------------------------
+000107b7  | lui   x15, 0x10          | Set x15 to 0x00010000 (The LED Address)
+00020537  | lui   x10, 0x20          | Set x10 to 0x00020000 (UART Data Address)
+00450593  | addi  x11, x10, 4        | Set x11 to 0x00020004 (UART Status Address)
+
+// --- START PATTERN 1 ---
+00500713  | li    x14, 5             | Put pattern '5' (Binary 00101) into x14
+00e7a023  | sw    x14, 0(x15)        | Physically write '5' to the LEDs (0x10000)
+03500693  | li    x13, 53            | Put ASCII '5' (Hex 0x35) into x13
+
+// --- UART TRANSMIT 1 (Wait and Send) ---
+0005a383  | lw    x7, 0(x11)         | Read UART Status from 0x20004
+0013f393  | andi  x7, x7, 1          | Check Bit 0 (tx_busy)
+fe039ce3  | bne   x7, x0, -8         | If busy, jump back 2 lines and check again
+00d52023  | sw    x13, 0(x10)        | Send ASCII '5' to the PC via UART
+
+// --- DELAY LOOP 1 (Wait for eyes to see LEDs) ---
+02000637  | lui   x12, 0x20000       | Set a large number in x12 (approx. 131,072)
+fff60613  | addi  x12, x12, -1       | Subtract 1 from x12
+fe061ee3  | bne   x12, x0, -4        | If not zero, jump back 1 line (Wait)
+
+// --- START PATTERN 2 ---
+00a00713  | li    x14, 10            | Put pattern '10' (Binary 01010) into x14
+00e7a023  | sw    x14, 0(x15)        | Physically write '10' to the LEDs
+04100693  | li    x13, 65            | Put ASCII 'A' (Hex 0x41) into x13
+
+// --- UART TRANSMIT 2 (Wait and Send) ---
+0005a383  | lw    x7, 0(x11)         | Read UART Status
+0013f393  | andi  x7, x7, 1          | Check Bit 0 (tx_busy)
+fe039ce3  | bne   x7, x0, -8         | If busy, jump back and check again
+00d52023  | sw    x13, 0(x10)        | Send ASCII 'A' to the PC via UART
+
+// --- DELAY LOOP 2 ---
+02000637  | lui   x12, 0x20000       | Reset the delay counter
+fff60613  | addi  x12, x12, -1       | Subtract 1
+fe061ee3  | bne   x12, x0, -4        | Wait...
+
+// --- REPEAT FOREVER ---
+fa9ff06f  | jal   x0, -84            | Jump back to line 4 (Start Pattern 1)

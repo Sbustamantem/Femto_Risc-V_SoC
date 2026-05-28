@@ -1,0 +1,11 @@
+00020537 // lui  x10, 0x20        | x10 = 0x20000 (UART Data Addr)
+00450593 // addi x11, x10, 4      | x11 = 0x20004 (UART Status Addr)
+0005a603 // lw   x12, 0(x11)      | [LOOP] Read Status
+00267693 // andi x13, x12, 2      | Check Bit 1 (rx_ready)
+fe068ae3 // beq  x13, zero, -8    | If 0, jump back to [LOOP]
+00052703 // lw   x14, 0(x10)      | Read the character from Data Reg
+0005a603 // lw   x12, 0(x11)      | [WAIT_TX] Read Status
+00167693 // andi x13, x12, 1      | Check Bit 0 (tx_busy)
+fe069ae3 // bne  x13, zero, -8    | If busy (1), jump back to [WAIT_TX]
+00e52023 // sw   x14, 0(x10)      | Send the character back (Echo)
+fe1ff06f // jal  x0, -32          | Jump back to [LOOP]
