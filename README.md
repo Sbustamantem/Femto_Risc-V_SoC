@@ -1,6 +1,7 @@
-# Project Title
+# Femto Risc-V SoC
+### Version 0.1.0-alpha
 
-Femto Risc-V SoC
+
 
 ## Description
 
@@ -68,15 +69,15 @@ Download the project source code to your local machine and navigate into the dir
 
 ```bash
 git clone https://github.com/sbustamantem/Femto_Risc-V_SoC.git
-cd femto-risc-v-soc
+cd Femto_Risc-V_SoC
 
 ```
 
 **4. Install the Local Toolchain**
-Navigate to the [**Releases**](https://github.com/sbustamantem/Femto_Risc-V_SoC/releases) tab on the GitHub repository page and download the `Tools.tar.gz` file. Extract it directly into the root of your cloned project so your directory structure looks exactly like this:
+Go to [**Releases**](https://github.com/sbustamantem/Femto_Risc-V_SoC/releases) tab on the GitHub repository page and download the `Tools.tar.gz` file. Extract it directly into the root of your cloned project so your directory structure looks exactly like this:
 
 ```text
-femto-risc-v-soc/
+Femto_Risc-V_SoC/
 ├── CMakeLists.txt
 ├── src/
 └── Tools/
@@ -159,7 +160,7 @@ Here are the planned upgrades and hardware peripheral expansions for future rele
 
 ## Version History
 
-* 0.1
+* 0.1.0-alpha
     * Initial Release
 
 ## License
