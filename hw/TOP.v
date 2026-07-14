@@ -1,7 +1,7 @@
 module TOP (
     input CLK,
     input RESET,
-    output [4:0] LEDS,
+    output [3:0] LEDS,
     input RXD,
     output TXD
 );

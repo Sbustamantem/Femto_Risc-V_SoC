@@ -8,7 +8,7 @@
 module SOC (
     input        CLK,   // Master external system clock input.
     input        RESET, // Master external system reset input.
-    output [4:0] LEDS,  // 5-bit physical output to drive external hardware LEDs.
+    output [3:0] LEDS,  // 4-bit physical output to drive external hardware LEDs.
     input        RXD,   // Physical UART Receive pin.
     output       TXD    // Physical UART Transmit pin.
 );
@@ -119,14 +119,14 @@ module SOC (
     // =========================================================================
     // Memory-Mapped LED Peripheral
     // =========================================================================
-    reg [4:0] led_reg = 0; // Internal state register for the 5 LEDs.
+    reg [3:0] led_reg = 0; // Internal state register for the 4 LEDs.
     
     always @(posedge clk) begin
         if (!resetn) 
             led_reg <= 0; // Synchronous active-low reset clears the LEDs.
         else if (sel_leds && is_writing) 
-            // Latches the lowest 5 bits of the CPU's write data when addressed.
-            led_reg <= mem_wdata[4:0]; 
+            // Latches the lowest 4 bits of the CPU's write data when addressed.
+            led_reg <= mem_wdata[3:0]; 
     end
     
     // Invert the register output before driving the physical pins because the 
@@ -150,8 +150,8 @@ module SOC (
             
         end else if (sel_leds) begin
             // Address Region 0x0001_xxxx: Read-back the current physical LED state.
-            // The internal 5-bit register is zero-extended to cleanly fit the 32-bit CPU bus.
-            mem_rdata = {27'b0, led_reg}; 
+            // The internal 4-bit register is zero-extended to cleanly fit the 32-bit CPU bus.
+            mem_rdata = {26'b0, led_reg}; 
             
         end else begin
             // Default/Fallback: Unmapped memory addresses return 0x0000_0000.

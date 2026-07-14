@@ -4,8 +4,8 @@
 #              bitstream generation, and hardware flashing via open-source tools.
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.10)
-project(FPGA_Toolchain_Setup)
+cmake_minimum_required(VERSION 3.15)
+project(FPGA_Toolchain_Setup NONE)
 
 # ==============================================================================
 # 1. ENVIRONMENT VALIDATION
@@ -41,6 +41,7 @@ message(STATUS "====================================================")
 # ==============================================================================
 
 # Locate Python 3 interpreter (Required for GUI utility scripts)
+set(Python3_FIND_VIRTUALENV FIRST)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 # Define local binary path for the Tang Primer OSS CAD toolchain
@@ -81,29 +82,89 @@ endif()
 message(STATUS "====================================================")
 
 # ==============================================================================
-# 3. BUILD PIPELINE (SYNTHESIS -> PNR -> BITSTREAM)
+# 3. SOFTWARE PIPELINE (C/ASM -> ELF -> BIN -> HEX)
+# ==============================================================================
+
+# Define toolchain commands 
+set(RISCV_GCC "riscv64-unknown-elf-gcc")
+set(RISCV_OBJCOPY "riscv64-unknown-elf-objcopy")
+set(HEXDUMP "hexdump")
+
+# 1. EXPLICITLY grab the boot file first so it stays at the top of memory
+set(BOOT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/sw/system/boot.s")
+
+# 2. Find ALL .c files anywhere inside sw/
+file(GLOB_RECURSE C_FILES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/sw/*.c"
+)
+
+# 3. Combine them, guaranteeing boot.s is the first argument passed to GCC
+set(SW_SRC_FILES ${BOOT_FILE} ${C_FILES})
+
+# Path for headers .h
+set(INCLUDE_FLAGS 
+    "-I${CMAKE_CURRENT_SOURCE_DIR}/sw"
+    "-I${CMAKE_CURRENT_SOURCE_DIR}/sw/drivers"
+    "-I${CMAKE_CURRENT_SOURCE_DIR}/sw/lib"
+)
+
+set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/sw/system/link.ld")
+
+
+# Step 1: Compile (C/Assembly -> ELF)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/firmware.elf
+    COMMAND ${RISCV_GCC} -T ${LINKER_SCRIPT} -march=rv32i -mabi=ilp32 -Os -ffreestanding -nostdlib -o ${CMAKE_CURRENT_BINARY_DIR}/firmware.elf ${SW_SRC_FILES}
+    DEPENDS ${SW_SRC_FILES} ${LINKER_SCRIPT}
+    COMMENT "Compiling RISC-V firmware with GCC..."
+)
+
+# Step 2: Extract Binary (ELF -> Raw Binary)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/firmware.bin
+    COMMAND ${RISCV_OBJCOPY} -O binary ${CMAKE_CURRENT_BINARY_DIR}/firmware.elf ${CMAKE_CURRENT_BINARY_DIR}/firmware.bin
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/firmware.elf
+    COMMENT "Extracting pure bare-metal binary with objcopy..."
+)
+
+# Step 3: Format to Hex (Binary -> Hex Array for readmemh)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/firmware.hex
+    COMMAND sh -c "${HEXDUMP} -v -e '1/4 \"%08x\\n\"' ${CMAKE_CURRENT_BINARY_DIR}/firmware.bin > ${CMAKE_CURRENT_BINARY_DIR}/firmware.hex"
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/firmware.bin
+    COMMENT "Formatting binary to hex for Verilog readmemh..."
+    VERBATIM
+)
+
+# Aggregate build target for the software compilation pipeline
+add_custom_target(compile_hls DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/firmware.hex)
+
+# ==============================================================================
+# 4. BUILD PIPELINE (SYNTHESIS -> PNR -> BITSTREAM)
 # ==============================================================================
 
 # Collect all hardware description and header files for dependency tracking
 file(GLOB SRC_FILES 
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.v" 
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.vh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hw/*.v" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/hw/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sw/*.hex"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hw/*.vh"
+    
 )
 
 # Step 1: Synthesis (Verilog -> JSON via Yosys)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/synth.json
-    COMMAND ${YOSYS_BIN} -p "read_verilog -I${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/src/*.v" -p "synth_gowin -top TOP -json ${CMAKE_CURRENT_BINARY_DIR}/synth.json" > ${CMAKE_CURRENT_BINARY_DIR}/yosys.log 2>&1
-    DEPENDS ${SRC_FILES} 
+    COMMAND ${YOSYS_BIN} -p "read_verilog -I${CMAKE_CURRENT_SOURCE_DIR}/hw -I${CMAKE_CURRENT_SOURCE_DIR}/hw/modules ${CMAKE_CURRENT_SOURCE_DIR}/hw/*.v ${CMAKE_CURRENT_SOURCE_DIR}/hw/modules/*.v" -p "synth_gowin -top TOP -json ${CMAKE_CURRENT_BINARY_DIR}/synth.json" > ${CMAKE_CURRENT_BINARY_DIR}/yosys.log 2>&1
+    DEPENDS ${SRC_FILES} ${CMAKE_CURRENT_BINARY_DIR}/firmware.hex
     COMMENT "Synthesizing Verilog with Yosys... (Check yosys.log for details)"
 )
 
 # Step 2: Place & Route (JSON -> PNR JSON via NextPNR)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pnr.json
-    COMMAND ${NEXTPNR_BIN} --json ${CMAKE_CURRENT_BINARY_DIR}/synth.json --write ${CMAKE_CURRENT_BINARY_DIR}/pnr.json --device GW2A-LV18PG256C8/I7 --vopt family=GW2A-18 --vopt cst=${CMAKE_CURRENT_SOURCE_DIR}/src/tang_primer_20k.cst > ${CMAKE_CURRENT_BINARY_DIR}/nextpnr.log 2>&1
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/synth.json ${CMAKE_CURRENT_SOURCE_DIR}/src/tang_primer_20k.cst
+    COMMAND ${NEXTPNR_BIN} --json ${CMAKE_CURRENT_BINARY_DIR}/synth.json --write ${CMAKE_CURRENT_BINARY_DIR}/pnr.json --device GW2A-LV18PG256C8/I7 --vopt family=GW2A-18 --vopt cst=${CMAKE_CURRENT_SOURCE_DIR}/hw/constraints/tang_primer_20k.cst > ${CMAKE_CURRENT_BINARY_DIR}/nextpnr.log 2>&1
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/synth.json ${CMAKE_CURRENT_SOURCE_DIR}/hw/constraints/tang_primer_20k.cst
     COMMENT "Running Place and Route with NextPNR... (Check nextpnr.log for details)"
 )
 
@@ -116,10 +177,10 @@ add_custom_command(
 )
 
 # Aggregate build target for the complete compilation pipeline
-add_custom_target(bitstream ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bitstream.fs)
+add_custom_target(build_bitstream ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bitstream.fs)
 
 # ==============================================================================
-# 4. HARDWARE COMMUNICATION & FLASHING TARGETS
+# 5. HARDWARE COMMUNICATION & FLASHING TARGETS
 # ==============================================================================
 
 # Define Target FPGA USB Hardware ID
@@ -169,14 +230,15 @@ add_custom_target(flash_rom
 )
 
 # ==============================================================================
-# 5. UTILITY TARGETS: PIN MULTIPLEXER GUI
+# 6. UTILITY TARGETS: PIN MULTIPLEXER GUI
 # ==============================================================================
 
 # Target: Launch Pin Mapper utility to modify an existing constraint file
 add_custom_target(map_pins_modify
     COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/Tools/PIN_MAP_UI.py" 
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/tang_primer_20k.cst" 
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/tang_primer_20k.cst"
+            "${CMAKE_CURRENT_SOURCE_DIR}/hw/constraints/tang_primer_20k.cst" 
+            "${CMAKE_CURRENT_SOURCE_DIR}/hw/constraints/tang_primer_20k.cst"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     USES_TERMINAL
     COMMENT "Launching Port Mapper (Modifying existing CST file)..."
 )
@@ -184,8 +246,9 @@ add_custom_target(map_pins_modify
 # Target: Launch Pin Mapper utility to extract ports from Verilog and generate new CST
 add_custom_target(map_pins_new
     COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/Tools/PIN_MAP_UI.py" 
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/TOP.v" 
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/tang_primer_20k.cst"
+            "${CMAKE_CURRENT_SOURCE_DIR}/hw/TOP.v" 
+            "${CMAKE_CURRENT_SOURCE_DIR}/hw/constraints/tang_primer_20k.cst"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     USES_TERMINAL
     COMMENT "Launching Port Mapper (Creating new CST from TOP.v)..."
 )
