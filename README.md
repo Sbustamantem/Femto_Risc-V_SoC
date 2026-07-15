@@ -1,5 +1,5 @@
 # Femto Risc-V SoC
-### Version 0.1.0-alpha
+### Version 0.2.0-alpha
 
 
 
@@ -14,7 +14,11 @@ Students learn the mechanics of Memory-Mapped I/O (MMIO) by developing custom ap
 ## Features
 
 * **Core Architecture**
-    * **Hex Code Execution:** Executes pre-compiled assembly logic directly on the physical RISC-V architecture. Code execution is memory-mapped, with the total word amount restricted by the available onboard Block RAM (BRAM) capacity.
+    * **HLS / Software Compilation:** Compiles high-level languages (such as C or C++) directly into a `.hex` file that can be processed by the Verilog `$readmemh` system task.
+    * **Hex Code Execution:** Executes compiled assembly logic directly on the physical RISC-V architecture. Code execution is memory-mapped, with the total program size restricted only by the available onboard Block RAM (BRAM) capacity.
+
+* **Supported Languages**
+    * **C / C++:** Fully supports standard `C` and `C++` compilation.
 
 * **Hardware & Peripherals**
     * **Supported Boards:** Tang Primer 20K.
@@ -22,12 +26,11 @@ Students learn the mechanics of Memory-Mapped I/O (MMIO) by developing custom ap
         * Onboard LEDs
         * UART (Universal Asynchronous Receiver-Transmitter)
         * BRAM (Mainly utilized for code instruction reading)
-
+          
 * **Developer Tools**
-    * **Pre-Configured Toolchain:** Completely self-contained place-and-route and bitstream generation backend (nextpnr-himbaechel and gowin_pack) bundled locally to prevent environment conflicts.
-    * **One-Click IDE Integration:** Custom VSCodium task buttons for seamless Verilog synthesis and SRAM/ROM flashing.
+    * **Unified Hardware & Software Toolchain:** Automates the entire firmware-to-hardware pipeline. Seamlessly manages the RISC-V GCC cross-compiler for firmware compilation alongside local, self-contained hardware synthesis tools (nextpnr-himbaechel and gowin_pack) to prevent environment conflicts.
+    * **One-Click IDE Integration:** Custom VSCode task buttons to execute the full-stack workflow—compiling HLS firmware, synthesizing Verilog, and flashing SRAM/ROM in one click.
     * **Interactive Pin-Mapping UI:** A custom-built graphical interface to easily map internal SoC logic to physical FPGA pins without manually writing `.cst` files.
-
 
 ## Getting Started
 
@@ -40,6 +43,8 @@ Ensure your system meets the operating system requirement, then install the foll
 * **VSCodium / VS Code:** The primary IDE used to interact with the project. You must install these extensions:
     * **Task Buttons (or similar):** Provides the one-click build and flash buttons in the bottom status bar.
     * **WSL Extension (Crucial for Windows users):** Allows VS Code on Windows to talk seamlessly to your WSL Linux terminal.
+* **RISC-V GNU Cross-Compiler (`gcc-riscv64-unknown-elf`):** The bare-metal cross-compiler toolchain used to compile high-level software (C, C++, and Assembly) into RISC-V firmware [2].
+* **System Tkinter (`python3-tk`):** The standard GUI library backend for Python. *Note: On Linux/WSL, this must be installed globally via your system package manager (`apt`), as it cannot be installed via `pip` [1].*
 * **Ninja:** The fast build system used to execute the compilation steps.
 * **Yosys:** Handles the Verilog RTL synthesis process.
 * **openFPGALoader:** Utility used to flash the generated bitstream to the FPGA hardware.
@@ -60,7 +65,7 @@ If you are using Windows, you must install the Windows Subsystem for Linux (WSL)
 **2. Install Global Dependencies**
 Open your Linux terminal (or WSL terminal) and run the following command to update your package manager and install Yosys, openFPGALoader, Python 3:
 ```bash
-sudo apt update && sudo apt install ninja-build yosys openfpgaloader python3 
+sudo apt update && sudo apt install ninja-build yosys openfpgaloader python3 python3-tk gcc-riscv64-unknown-elf bsdextrautils  
 
 ```
 
@@ -79,7 +84,8 @@ Go to [**Releases**](https://github.com/sbustamantem/Femto_Risc-V_SoC/releases) 
 ```text
 Femto_Risc-V_SoC/
 ├── CMakeLists.txt
-├── src/
+├── hw/
+├── sw/
 └── Tools/
 
 ```
@@ -144,8 +150,6 @@ To load a new example program onto the processor:
 
 Here are the planned upgrades and hardware peripheral expansions for future releases:
 
-* **Core Architecture & Toolchain**
-    * [ ] **Bare-Metal C Support:** Integrate a compiler toolchain to build and execute C code directly on the RISC-V architecture without operating system overhead.
 * **General Purpose I/O & Timers**
     * [ ] GPIO expansion
     * [ ] Hardware Timers
@@ -162,6 +166,8 @@ Here are the planned upgrades and hardware peripheral expansions for future rele
 
 * 0.1.0-alpha
     * Initial Release
+* 0.2.0-alpha
+    * Added HLS Compiling support  
 
 ## License
 
@@ -172,6 +178,8 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 This project was made possible thanks to the incredible work of the open-source hardware and software communities:
 
 * **[Bruno Levy (FemtoRV)](https://github.com/BrunoLevy/learn-fpga):** For the excellent BSD-licensed FemtoRV RISC-V core design that serves as the processing foundation for this SoC architecture.
+* **[Debian & Ubuntu Packaging Teams](https://tracker.debian.org/pkg/gcc-riscv64-unknown-elf):** For maintaining the pre-compiled `gcc-riscv64-unknown-elf` toolchain, enabling seamless, single-command installation of the bare-metal RISC-V cross-compiler.
+* **[Debian BSD Utilities Project](https://tracker.debian.org/pkg/bsdextrautils):** For maintaining the `bsdextrautils` package, which brings standard, lightweight BSD-derived utilities like `hexdump` natively to Linux environments.
 * **[YosysHQ & OSS-CAD-Suite](https://github.com/YosysHQ/oss-cad-suite-build):** For providing the robust, open-source synthesis and place-and-route tools (Yosys, nextpnr) bundled in our portable toolchain.
 * **[Project Apicula](https://github.com/YosysHQ/apicula):** For the essential Gowin FPGA bitstream documentation and `gowin_pack` utilities.
 * **[openFPGALoader](https://github.com/trabucayre/openFPGALoader):** For the universal utility that makes flashing FPGAs seamless.
