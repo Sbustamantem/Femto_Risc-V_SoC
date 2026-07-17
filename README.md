@@ -65,7 +65,7 @@ If you are using Windows, you must install the Windows Subsystem for Linux (WSL)
 **2. Install Global Dependencies**
 Open your Linux terminal (or WSL terminal) and run the following command to update your package manager and install Yosys, openFPGALoader, Python 3:
 ```bash
-sudo apt update && sudo apt install ninja-build yosys openfpgaloader python3 python3-tk gcc-riscv64-unknown-elf bsdextrautils  
+sudo apt update && sudo apt install cmake ninja-build yosys openfpgaloader python3 python3-tk gcc-riscv64-unknown-elf bsdextrautils  
 
 ```
 
