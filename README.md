@@ -1,7 +1,6 @@
 # Femto Risc-V SoC
+
 ### Version 0.2.0-alpha
-
-
 
 ## Description
 
@@ -34,100 +33,104 @@ Students learn the mechanics of Memory-Mapped I/O (MMIO) by developing custom ap
 
 ## Getting Started
 
+### Installing
+
+VS Code (or VSCodium) is required as the primary IDE regardless of the chosen installation method.
+
+Select the preferred environment below to view specific setup instructions:
+
+[Linux Local OS](#linux-local-os)
+
+[Windows (WLS)](#windows-wls)
+
+[Docker (Any)](#docker)
+
 ### Dependencies
 
-#### Host Environment (User Installed)
-Ensure your system meets the operating system requirement, then install the following tools globally:
+#### Host Environment 
 
-* **Operating System:** Linux or Windows Subsystem for Linux (WSL).
-* **VSCodium / VS Code:** The primary IDE used to interact with the project. You must install these extensions:
+* **VS Code:** The primary IDE used to interact with the project. These extensions must be installed:
     * **Task Buttons (or similar):** Provides the one-click build and flash buttons in the bottom status bar.
-    * **WSL Extension (Crucial for Windows users):** Allows VS Code on Windows to talk seamlessly to your WSL Linux terminal.
 * **RISC-V GNU Cross-Compiler (`gcc-riscv64-unknown-elf`):** The bare-metal cross-compiler toolchain used to compile high-level software (C, C++, and Assembly) into RISC-V firmware [2].
-* **System Tkinter (`python3-tk`):** The standard GUI library backend for Python. *Note: On Linux/WSL, this must be installed globally via your system package manager (`apt`), as it cannot be installed via `pip` [1].*
+* **System Tkinter (`python3-tk`):** The standard GUI library backend for Python. 
 * **Ninja:** The fast build system used to execute the compilation steps.
 * **Yosys:** Handles the Verilog RTL synthesis process.
 * **openFPGALoader:** Utility used to flash the generated bitstream to the FPGA hardware.
 * **Python 3:** Required to execute the custom pin-mapping User Interface (UI).
 
 #### Project-Specific Tool Suite (Bundled in Releases)
-The remaining Gowin-specific backend tools are packaged inside the optimized `Tools/` folder provided in this repository's GitHub Releases page. You do not need to install these globally:
+The remaining Gowin-specific backend tools are packaged inside the optimized `Tools/` folder provided in this repository's GitHub Releases page. There is no need to install these globally:
 
 * **nextpnr-himbaechel:** Executes the place-and-route process for the Gowin FPGA architecture.
 * **gowin_pack:** Converts the place-and-route routing database into the final `.fs` bitstream file.
 * **customTinker:** Internal project dependencies and utilities required by the pin-mapping UI.
+---
+#### Linux Local OS
+**System Requirement:** The automated setup script utilizes the **`apt`** package manager and is designed for Debian-derived Linux distributions.
 
-### Installing
-
-**1. Prepare Your Environment (Windows Users Only)**
-If you are using Windows, you must install the Windows Subsystem for Linux (WSL) to run the toolchain. Follow the official [Microsoft WSL Installation Guide](https://learn.microsoft.com/en-us/windows/wsl/install) before proceeding. You will also need to install the **WSL extension** within VS Code so it can interface with your Linux environment.
-
-**2. Install Global Dependencies**
-Open your Linux terminal (or WSL terminal) and run the following command to update your package manager and install Yosys, openFPGALoader, Python 3:
+**Execute Workspace Setup:** Run the automated setup script from the root of the repository directory:
 ```bash
-sudo apt update && sudo apt install cmake ninja-build yosys openfpgaloader python3 python3-tk gcc-riscv64-unknown-elf bsdextrautils  
-
+bash setup.sh
 ```
+---   
+#### Windows WLS
 
-**3. Clone the Repository**
-Download the project source code to your local machine and navigate into the directory:
+1. **IDE Configuration:** Ensure the official **WSL extension** (`ms-vscode-remote.remote-wsl`) is installed in VS Code.
+2. **Configure USB Forwarding (`usbipd-win`):** Install `usbipd-win` on the Windows host machine to enable USB device pass-through into the WSL2 kernel. Run the following command in an Administrator Command Prompt or PowerShell:
+   ```powershell
+   winget install -e --id dorssel.usbipd-win
+   ```
+3. **Bind and Attach USB Hardware:** Connect the FPGA board via USB, inspect connected devices, and forward the board's bus ID to WSL:
+   ```powershell
+   usbipd list
+   usbipd attach --wsl --busid <BUS_ID>
+   ```
+4. **Execute Workspace Setup:** Open the repository folder inside the WSL environment in VS Code and execute the setup script:
+   ```bash
+   bash setup.sh
+   ```
+---
+#### Docker 
 
-```bash
-git clone https://github.com/sbustamantem/Femto_Risc-V_SoC.git
-cd Femto_Risc-V_SoC
+1. **IDE Configuration:** The **Dev Containers extension** (`ms-vscode-remote.remote-containers`) must be installed in VS Code across all operating systems.
+2. **Host Engine & Permission Requirements:**
+   * **Linux Hosts:** Native Docker Engine (**`docker.io`**) is required. Add the active user account to the `docker` user group to grant the container access to USB hardware for flashing:
+     ```bash
+     sudo apt update && sudo apt install -y docker.io
+     sudo usermod -aG docker $USER
+     newgrp docker
+     ```
+   * **Windows Hosts:** **Docker Desktop for Windows** is required, along with `usbipd-win` installed on the Windows host to bind physical USB ports into the container environment (`usbipd attach --wsl --busid <BUS_ID>`).
+3. **Launch Container Environment:** Open the repository folder in VS Code, open the Command Palette (`Ctrl+Shift+P`), and select **`Dev Containers: Reopen in Container`**. All compiler packages, toolchain dependencies, and GUI assets will configure automatically inside the container.
+---
+### Program Execution
 
-```
+Upon completing the workspace installation, four task buttons become available in the bottom status bar of VS Code (or VSCodium) to manage the FPGA hardware and firmware lifecycle:
 
-**4. Install the Local Toolchain**
-Go to [**Releases**](https://github.com/sbustamantem/Femto_Risc-V_SoC/releases) tab on the GitHub repository page and download the `Tools.tar.gz` file. Extract it directly into the root of your cloned project so your directory structure looks exactly like this:
+**1. Workspace Initialization (Required First Step)**
+Before executing any build, compilation, or flashing tasks, the build system must be configured:
+* Select the **Setup CMake** status bar button (`$(gear)` icon, second button).
+* This task prepares the Ninja build engine, validates system paths, and registers cross-compilation dependencies.
 
-```text
-Femto_Risc-V_SoC/
-├── CMakeLists.txt
-├── hw/
-├── sw/
-└── Tools/
+**2. Pin Constraints Configuration**
+To adjust how internal SoC logic signals map to physical pins on the Tang Primer 20K FPGA:
+* Select the **Pin Mapper** status bar button (`| Tang $(circuit-board)` icon, first button).
+* Within the graphical interface, choose whether to modify an existing `.cst` constraint file or parse `TOP.v` to generate a new constraint file.
+* Save the updated configuration to ensure the new physical pin assignments are applied during bitstream generation.
 
-```
+**3. Software Compilation & Bitstream Synthesis (Required Before Flashing)**
+Before uploading logic to physical hardware, the software firmware and hardware design must be compiled:
+* Select the **Build** status bar button (`$(tools)` icon, third button).
+* **Flexible Execution Workflow:** Software compilation (compiling C or assembly source files into `firmware.hex`) and hardware synthesis (compiling Verilog into the `.fs` bitstream file) can be performed **either together in a single step or separately as individual build targets**, depending on whether software or hardware changes were made.
+* Following the build process, consult `yosys.log` (synthesis results) and `nextpnr.log` (place-and-route analysis) inside the `build/` directory to review Block RAM utilization, physical footprint, and timing performance.
 
-**5. Launch Your IDE**
-Open the project in VSCodium or VS Code. If you are using WSL, ensure you are still inside the project directory in your terminal and run the following command to link the Linux environment to your Windows IDE:
-
-```bash
-code .
-
-```
-
-**6. Install Task Buttons Extension**
-Once your IDE is open, navigate to the Extensions tab and search for the **Task Buttons** extension (or similar task runner extensions). Install it so the automated build and flash buttons appear in your bottom status bar.
-
-**7. Execute the Workspace Setup**
-Once your terminal is open inside VS Code, run the provided shell script to finalize your editor configuration and task buttons:
-
-```bash
-bash Tools/.vscode_setup.sh
-
-```
-
-### Executing program
-
-If you have completed the installation and run the setup script, you will see four task buttons located in the bottom-left corner of your IDE's status bar. You can use these to interact with the FPGA:
-
-**1. Flashing the Firmware**
-The project is pre-configured to load the compiled assembly logic directly from `src/firmware.hex`. To upload this to the board:
-* Ensure your FPGA is securely plugged into your computer via USB.
-* Click the **Flash** button (represented by a thunder icon) in the status bar.
-* A prompt will appear asking you to select a memory target. Choose either **SRAM** (for fast, volatile testing) or **ROM** (for persistent storage).
-
-**2. Modifying Pin Constraints**
-To change how the SoC's internal logic routes to the physical pins on the FPGA board:
-* Click the **[pin-mapping-ui]** button (the first button in the status bar).
-* The custom UI will launch. From here, you can either modify the existing `.cst` constraint file or generate a brand new one based on the current `top.v` Verilog definition.
-* Save your changes in the UI, then run the **Flash** sequence again to apply the new hardware routing.
-
-**3. Verilog Modifications & Debugging**
-If you make changes to the core hardware design in the Verilog (`.v`) files, the synthesis tools will automatically track the impact on the FPGA's resources. 
-* After building, check the newly generated `yosys.log` (for synthesis results) and `nextpnr.log` (for place-and-route results) to verify how your custom logic affects the chip's physical footprint and timing.
+**4. Board Flashing**
+Once the firmware and bitstream binaries have been built successfully:
+* Ensure the FPGA board is connected to the host system via USB.
+* Select the **Flash** status bar button (`$(zap) |` lightning icon, fourth button).
+* When prompted by the menu, select the target memory destination:
+  * **SRAM:** Fast, volatile execution (ideal for rapid testing; cleared upon power loss).
+  * **ROM:** Non-volatile, persistent onboard flash storage.
 
 ## Running the Example Programs
 
@@ -135,9 +138,9 @@ This repository includes pre-compiled example programs to run on the SoC.
 
 To load a new example program onto the processor:
 
-1. Navigate to the `src/Examples/` directory.
+1. Navigate to the `sw/Examples/` directory.
 2. Open  `Examples_raw_code.txt` copy the raw hexadecimal text of choice.
-3. Open the `src/firmware.hex` file in the code editor.
+3. Open the `build/firmware.hex` file in the code editor.
 4. Delete the current contents of the file, paste the copied hex code, and save.
 5. Rebuild the project to execute the new firmware
 
@@ -184,6 +187,7 @@ This project was made possible thanks to the incredible work of the open-source 
 * **[Project Apicula](https://github.com/YosysHQ/apicula):** For the essential Gowin FPGA bitstream documentation and `gowin_pack` utilities.
 * **[openFPGALoader](https://github.com/trabucayre/openFPGALoader):** For the universal utility that makes flashing FPGAs seamless.
 * **[Tom Schimansky (CustomTkinter)](https://github.com/TomSchimansky/CustomTkinter):** For the modern Python UI library used to build the interactive pin-mapping tool.
+* **[Docker & Development Containers](https://containers.dev/):** For providing the containerization platform and specification that enables an isolated, reproducible, and cross-platform one-click development workspace.
 * **AI Assistance:** Certain boilerplate Verilog peripherals and UI framework drafts were generated with the assistance of AI coding tools before undergoing human review, modification, and integration into the final architecture.
 
 
