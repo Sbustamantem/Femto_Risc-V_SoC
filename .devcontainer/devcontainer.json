@@ -23,14 +23,9 @@
     // Download and extract the custom packaged Tools 
     "postCreateCommand": "if [ ! -d \"/workspace/Tools\" ]; then echo '[*] Downloading tools...'; curl -f -L \"https://github.com/Sbustamantem/Femto_Risc-V_SoC/releases/download/v0.2.0-alpha/Tools.tar.xz\" | tar -xJf - -C /workspace/; else echo '[✓] Tools already exist.'; fi",
 
- 
-
-
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "spencerwmiles.vscode-task-buttons"   
-            ]
-        }
+    "remoteEnv": {
+        "PATH": "${containerEnv:PATH}:/workspace/Tools/Tang-primer-20k-oss-cad/bin"
     }
+
+
 }

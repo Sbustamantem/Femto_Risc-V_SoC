@@ -5,10 +5,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 #Dependencies
 RUN apt update && apt install -y \
-    cmake \
-    ninja-build \
     yosys \
     openfpgaloader \
+    iverilog \
     python3 \
     python3-tk \
     gcc-riscv64-unknown-elf \
