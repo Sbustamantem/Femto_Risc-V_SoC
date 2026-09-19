@@ -8,6 +8,7 @@ RUN apt update && apt install -y \
     yosys \
     openfpgaloader \
     iverilog \
+    git \
     python3 \
     python3-tk \
     gcc-riscv64-unknown-elf \

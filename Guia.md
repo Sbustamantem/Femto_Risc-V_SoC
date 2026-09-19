@@ -186,7 +186,7 @@ nextpnr-himbaechel \
   --write project_pnr.json \
   --device GW2A-LV18PG256C8/I7 \
   --vopt family=GW2A-18 \
-  --cst hw/constraints/tang_primer_20k.cst
+  --vopt cst=tang_primer_20k.cst
 ```
 
 * **Parámetros Clave:**
