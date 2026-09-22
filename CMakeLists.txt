@@ -227,6 +227,7 @@ add_custom_target(flash_rom
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bitstream.fs
     USES_TERMINAL
     COMMENT "Verifying hardware presence and writing to FPGA Flash Memory..."
+    VERBATIM
 )
 
 # ==============================================================================
